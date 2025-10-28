@@ -1,4 +1,3 @@
-
 // RENTOHUB - Login & Signup
 document.addEventListener("submit", (e) => {
   const form = e.target;
@@ -96,8 +95,15 @@ const AppData = {
     currentUser: null,
     searchFilters: { startDate: null, endDate: null, vehicleType: "all" }
 };
+// 🆕 Load saved vehicles from localStorage (if any)
+const savedVehicles = JSON.parse(localStorage.getItem("rentoHubVehicles"));
+if (savedVehicles && Array.isArray(savedVehicles)) {
+  AppData.vehicles = savedVehicles;
+}
+
 
 // Main App Class
+
 class App {
     constructor() {
         this.currentPage = 'home';
@@ -142,6 +148,9 @@ class App {
             case 'bookings':
                 content.appendChild(this.renderBookingsPage());
                 break;
+            case 'listVehicle':
+                content.appendChild(this.renderListVehiclePage());
+                 break;
             default:
                 content.appendChild(this.renderHomePage());
         }
@@ -155,10 +164,14 @@ class App {
             <div class="nav-container">
                 <div class="logo" onclick="app.navigateTo('home')" style="cursor: pointer;">🚗 SmartRide</div>
                 <ul class="nav-menu">
-                    <li><a onclick="app.navigateTo('home')">Home</a></li>
-                    <li><a onclick="app.navigateTo('vehicles')">Vehicles</a></li>
-                    ${AppData.currentUser ? '<li><a onclick="app.navigateTo(\'bookings\')">My Bookings</a></li>' : ''}
-                </ul>
+  <li><a onclick="app.navigateTo('home')">Home</a></li>
+  <li><a onclick="app.navigateTo('vehicles')">Vehicles</a></li>
+  ${AppData.currentUser && AppData.currentUser.role === 'CUSTOMER' ? `
+      <li><a onclick="app.navigateTo('bookings')">My Bookings</a></li>` : ''}
+  ${AppData.currentUser && AppData.currentUser.role === 'OWNER' ? `
+      <li><a onclick="app.navigateTo('listVehicle')">List My Vehicle</a></li>` : ''}
+</ul>
+
                 <div class="auth-buttons">
                     ${AppData.currentUser ? 
                         `<span style="color: white; margin-right: 1rem;">Hello, ${AppData.currentUser.name}</span>
@@ -283,31 +296,41 @@ class App {
         return container;
     }
 
-    createVehicleCard(vehicle) {
-        const stars = '★'.repeat(Math.floor(vehicle.rating)) + '☆'.repeat(5 - Math.floor(vehicle.rating));
 
-        // Use image if available, otherwise fallback to emoji
-        const imageTag = vehicle.imageUrl ? `<img src="${vehicle.imageUrl}" alt="${vehicle.name}" loading="lazy">` : (vehicle.emoji || '🚗');
+createVehicleCard(vehicle) {
+  const stars = '★'.repeat(Math.floor(vehicle.rating)) + '☆'.repeat(5 - Math.floor(vehicle.rating));
 
-        return `
-            <div class="vehicle-card" onclick="app.showVehicleDetails(${vehicle.id})">
-                <div class="vehicle-image">${imageTag}</div>
-                <div class="vehicle-info">
-                    <div class="vehicle-name">${vehicle.name}</div>
-                    <div class="vehicle-model">${vehicle.model} (${vehicle.year})</div>
-                    ${vehicle.ecoRating >= 4 ? '<span class="eco-badge">Eco-Friendly ♻️</span>' : ''}
-                    <div class="rating">${stars} (${vehicle.reviewCount})</div>
-                    <div style="display: flex; justify-content: space-between; margin: 0.5rem 0; color: #6b7280; font-size: 0.9rem;">
-                        <span>👥 ${vehicle.seatingCapacity}</span>
-                        <span>⚙️ ${vehicle.transmission}</span>
-                        <span>⛽ ${vehicle.type}</span>
-                    </div>
-                    <div class="vehicle-price">₹${vehicle.pricePerDay}/day</div>
-                    <button class="btn btn-primary" style="width: 100%;" onclick="event.stopPropagation(); app.bookVehicle(${vehicle.id})">Book Now</button>
-                </div>
-            </div>
-        `;
-    }
+  // Use image if available, otherwise fallback to emoji
+  const imageTag = vehicle.imageUrl
+    ? `<img src="${vehicle.imageUrl}" alt="${vehicle.name}" loading="lazy">`
+    : (vehicle.emoji || '🚗');
+
+  return `
+    <div class="vehicle-card" onclick="app.showVehicleDetails(${vehicle.id})">
+      <div class="vehicle-image">${imageTag}</div>
+      <div class="vehicle-info">
+        <div class="vehicle-name">${vehicle.name}</div>
+        <div class="vehicle-model">${vehicle.model} (${vehicle.year})</div>
+        ${vehicle.ecoRating >= 4 ? '<span class="eco-badge">Eco-Friendly ♻️</span>' : ''}
+        <div class="rating">${stars} (${vehicle.reviewCount})</div>
+        <div style="display: flex; justify-content: space-between; margin: 0.5rem 0; color: #6b7280; font-size: 0.9rem;">
+          <span>👥 ${vehicle.seatingCapacity}</span>
+          <span>⚙️ ${vehicle.transmission}</span>
+          <span>⛽ ${vehicle.type}</span>
+        </div>
+        <div class="vehicle-price">₹${vehicle.pricePerDay}/day</div>
+        <button class="btn btn-primary" style="width: 100%;" onclick="event.stopPropagation(); app.bookVehicle('${vehicle.id}')">Book Now</button>
+        ${AppData.currentUser && AppData.currentUser.role === 'OWNER'
+            ? `<button class="btn btn-danger" style="width: 100%;" onclick="event.stopPropagation(); app.deleteVehicle(${vehicle.id})">Delete</button>`
+            : ''}
+
+      </div>
+    </div>
+  `;
+}
+
+
+
 
     showVehicleDetails(vehicleId) {
         const vehicle = AppData.vehicles.find(v => v.id === vehicleId);
@@ -340,79 +363,107 @@ class App {
         `;
         document.body.appendChild(modal);
     }
+    deleteVehicle(vehicleId) {
+  if (!confirm("Are you sure you want to delete this vehicle?")) return;
+
+  // Remove from AppData
+  AppData.vehicles = AppData.vehicles.filter(v => v.id !== vehicleId);
+
+  // Update localStorage so it stays deleted
+  localStorage.setItem("rentoHubVehicles", JSON.stringify(AppData.vehicles));
+
+  alert("🚗 Vehicle deleted successfully!");
+  this.navigateTo("vehicles"); // refresh the page to show updated list
+}
+
 
     bookVehicle(vehicleId) {
-        if (!AppData.currentUser) {
-            alert('Please login to book a vehicle');
-            this.navigateTo('login');
-            return;
-        }
+    console.log("Booking vehicle ID:", vehicleId); // ✅ Debug log
 
-        const vehicle = AppData.vehicles.find(v => v.id === vehicleId);
-        if (!vehicle) return;
-
-        const modal = document.createElement('div');
-        modal.className = 'modal active';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Book ${vehicle.name}</h2>
-                    <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
-                </div>
-                <form onsubmit="return app.confirmBooking(event, ${vehicleId})">
-                    <div class="form-group">
-                        <label>Start Date</label>
-                        <input type="date" id="bookingStartDate" value="${AppData.searchFilters.startDate || ''}" required>
-                    </div>
-                    <div class="form-group">
-                        <label>End Date</label>
-                        <input type="date" id="bookingEndDate" value="${AppData.searchFilters.endDate || ''}" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Insurance Type</label>
-                        <select id="insuranceType" required>
-                            <option value="Basic">Basic (₹5/day)</option>
-                            <option value="Comprehensive">Comprehensive (₹15/day)</option>
-                        </select>
-                    </div>
-                    <div style="background: #f3f4f6; padding: 1rem; border-radius: 5px; margin: 1rem 0;">
-                        <p><strong>Price per day:</strong> ₹${vehicle.pricePerDay}</p>
-                        <p id="totalCostDisplay"><strong>Total Cost:</strong> Calculating...</p>
-                        ${vehicle.ecoRating >= 4 ? '<p style="color: #10b981;">🌱 Eco-friendly choice! Earn 50 reward points</p>' : ''}
-                    </div>
-                    <button type="submit" class="btn btn-success" style="width: 100%;">Confirm Booking</button>
-                </form>
-            </div>
-        `;
-        document.body.appendChild(modal);
-
-        setTimeout(() => {
-            const today = new Date().toISOString().split('T')[0];
-            const startInput = document.getElementById('bookingStartDate');
-            const endInput = document.getElementById('bookingEndDate');
-            if (startInput) startInput.min = today;
-            if (endInput) endInput.min = today;
-
-            const calculateTotal = () => {
-                const start = new Date(startInput.value);
-                const end = new Date(endInput.value);
-                const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-
-                if (days > 0) {
-                    const insurance = document.getElementById('insuranceType').value === 'Basic' ? 5 : 15;
-                    const total = (vehicle.pricePerDay * days) + (insurance * days);
-                    document.getElementById('totalCostDisplay').innerHTML = `<strong>Total Cost:</strong> ₹${total} (${days} days)`;
-                }
-            };
-
-            if (startInput && endInput) {
-                startInput.addEventListener('change', calculateTotal);
-                endInput.addEventListener('change', calculateTotal);
-                document.getElementById('insuranceType').addEventListener('change', calculateTotal);
-                calculateTotal();
-            }
-        }, 100);
+    // 1️⃣ Check if user is logged in
+    if (!AppData.currentUser) {
+        alert('Please login to book a vehicle');
+        this.navigateTo('login');
+        return;
     }
+
+    // 2️⃣ Find the correct vehicle (string-safe comparison)
+    const vehicle = AppData.vehicles.find(v => String(v.id) === String(vehicleId));
+    if (!vehicle) {
+        console.error("Vehicle not found for ID:", vehicleId);
+        alert("Sorry, this vehicle could not be found.");
+        return;
+    }
+
+    // 3️⃣ Build booking modal
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Book ${vehicle.name}</h2>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <form onsubmit="return app.confirmBooking(event, ${vehicle.id})">
+                <div class="form-group">
+                    <label>Start Date</label>
+                    <input type="date" id="bookingStartDate" value="${AppData.searchFilters.startDate || ''}" required>
+                </div>
+                <div class="form-group">
+                    <label>End Date</label>
+                    <input type="date" id="bookingEndDate" value="${AppData.searchFilters.endDate || ''}" required>
+                </div>
+                <div class="form-group">
+                    <label>Insurance Type</label>
+                    <select id="insuranceType" required>
+                        <option value="Basic">Basic (₹5/day)</option>
+                        <option value="Comprehensive">Comprehensive (₹15/day)</option>
+                    </select>
+                </div>
+                <div style="background: #f3f4f6; padding: 1rem; border-radius: 5px; margin: 1rem 0;">
+                    <p><strong>Price per day:</strong> ₹${vehicle.pricePerDay}</p>
+                    <p id="totalCostDisplay"><strong>Total Cost:</strong> Calculating...</p>
+                    ${vehicle.ecoRating >= 4 ? '<p style="color: #10b981;">🌱 Eco-friendly choice! Earn 50 reward points</p>' : ''}
+                </div>
+                <button type="submit" class="btn btn-success" style="width: 100%;">Confirm Booking</button>
+            </form>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // 4️⃣ Initialize date inputs and listeners safely
+    setTimeout(() => {
+        const today = new Date().toISOString().split('T')[0];
+        const startInput = document.getElementById('bookingStartDate');
+        const endInput = document.getElementById('bookingEndDate');
+        if (startInput) startInput.min = today;
+        if (endInput) endInput.min = today;
+
+        const calculateTotal = () => {
+            if (!startInput || !endInput) return;
+            const start = new Date(startInput.value);
+            const end = new Date(endInput.value);
+            const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+
+            if (days > 0) {
+                const insuranceElement = document.getElementById('insuranceType');
+                const insurance = (insuranceElement && insuranceElement.value === 'Basic') ? 5 : 15;
+                const total = (vehicle.pricePerDay * days) + (insurance * days);
+                const display = document.getElementById('totalCostDisplay');
+                if (display) display.innerHTML = `<strong>Total Cost:</strong> ₹${total} (${days} days)`;
+            }
+        };
+
+        const insuranceElement = document.getElementById('insuranceType');
+        if (startInput && endInput && insuranceElement) {
+            startInput.addEventListener('change', calculateTotal);
+            endInput.addEventListener('change', calculateTotal);
+            insuranceElement.addEventListener('change', calculateTotal);
+            calculateTotal(); // run once initially
+        }
+    }, 100);
+}
+
 
     confirmBooking(event, vehicleId) {
         event.preventDefault();
@@ -579,7 +630,14 @@ class App {
                 `<div class="vehicles-grid">
                     ${userBookings.map(booking => `
                         <div class="vehicle-card">
-                            <div class="vehicle-image">🚗</div>
+                            <div class="vehicle-image">
+  ${
+    (AppData.vehicles.find(v => v.id === booking.vehicleId)?.imageUrl)
+      ? `<img src="${AppData.vehicles.find(v => v.id === booking.vehicleId).imageUrl}" alt="${booking.vehicleName}" style="width:100%;height:150px;object-fit:cover;border-radius:8px;">`
+      : '🚗'
+  }
+</div>
+
                             <div class="vehicle-info">
                                 <div class="vehicle-name">${booking.vehicleName}</div>
                                 <p><strong>Booking ID:</strong> #${booking.id}</p>
@@ -597,6 +655,71 @@ class App {
         `;
         return container;
     }
+    // 🆕 OWNER: Add new vehicle listing page
+renderListVehiclePage() {
+  const container = document.createElement('div');
+  container.className = 'container';
+  container.innerHTML = `
+    <h2 style="margin-top:2rem;">List Your Vehicle</h2>
+    <form class="auth-form" onsubmit="return app.handleVehicleListing(event)">
+      <div class="form-group">
+        <label>Vehicle Name</label>
+        <input id="vName" placeholder="e.g. Honda City" required>
+      </div>
+      <div class="form-group">
+        <label>Model</label>
+        <input id="vModel" placeholder="e.g. VX CVT" required>
+      </div>
+      <div class="form-group">
+        <label>Price/Day (₹)</label>
+        <input id="vPrice" type="number" placeholder="e.g. 1800" required>
+      </div>
+      <div class="form-group">
+        <label>Image URL (optional)</label>
+        <input id="vImage" placeholder="Paste direct image link (e.g. from Unsplash)">
+      </div>
+      <button type="submit" class="btn btn-success">Add Vehicle</button>
+    </form>
+  `;
+  return container;
+}
+
+
+// 🆕 OWNER: Handle adding new vehicle
+handleVehicleListing(event) {
+  event.preventDefault();
+
+  const imageInput = document.getElementById('vImage').value.trim();
+
+  const newVehicle = {
+    id: Date.now(),
+    name: document.getElementById('vName').value,
+    model: document.getElementById('vModel').value,
+    pricePerDay: parseInt(document.getElementById('vPrice').value),
+    available: true,
+    ownerType: 'P2P',
+    type: 'Petrol',
+    seatingCapacity: 5,
+    transmission: 'Manual',
+    year: 2024,
+    category: 'Sedan',
+    features: ['AC', 'GPS'],
+    color: 'Silver',
+    // ✅ Use pasted link or fallback image
+    imageUrl: imageInput || 'https://upload.wikimedia.org/wikipedia/commons/9/9d/Generic_car_image.jpg'
+  };
+
+  AppData.vehicles.push(newVehicle);
+
+  // Save all vehicles persistently
+  localStorage.setItem("rentoHubVehicles", JSON.stringify(AppData.vehicles));
+
+  alert('✅ Vehicle listed successfully!');
+  this.navigateTo('vehicles');
+  return false;
+}
+
+
 
     logout() {
         AppData.currentUser = null;
@@ -698,6 +821,7 @@ document.getElementById("switchToLogin").addEventListener("click", (e) => {
   loginForm.style.display = "block";
   authTitle.textContent = "Login to SmartRide";
 });
+
 
 
 
