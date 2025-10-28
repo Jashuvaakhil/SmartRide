@@ -1,4 +1,3 @@
-// RENTOHUB - Login & Signup
 document.addEventListener("submit", (e) => {
   const form = e.target;
 
@@ -40,7 +39,6 @@ document.addEventListener("submit", (e) => {
   }
 });
 
-// Data Storage
 const AppData = {
     users: [
         { id: 1, name: "Demo User", email: "demo@example.com", password: "demo123", phone: "+91 98765 43210", role: "CUSTOMER", licenseNumber: "TN0120230045678", rewardPoints: 450, membershipTier: "Gold" },
@@ -95,14 +93,12 @@ const AppData = {
     currentUser: null,
     searchFilters: { startDate: null, endDate: null, vehicleType: "all" }
 };
-// 🆕 Load saved vehicles from localStorage (if any)
 const savedVehicles = JSON.parse(localStorage.getItem("rentoHubVehicles"));
 if (savedVehicles && Array.isArray(savedVehicles)) {
   AppData.vehicles = savedVehicles;
 }
 
 
-// Main App Class
 
 class App {
     constructor() {
@@ -366,28 +362,24 @@ createVehicleCard(vehicle) {
     deleteVehicle(vehicleId) {
   if (!confirm("Are you sure you want to delete this vehicle?")) return;
 
-  // Remove from AppData
   AppData.vehicles = AppData.vehicles.filter(v => v.id !== vehicleId);
 
-  // Update localStorage so it stays deleted
   localStorage.setItem("rentoHubVehicles", JSON.stringify(AppData.vehicles));
 
   alert("🚗 Vehicle deleted successfully!");
-  this.navigateTo("vehicles"); // refresh the page to show updated list
+  this.navigateTo("vehicles"); 
 }
 
 
     bookVehicle(vehicleId) {
-    console.log("Booking vehicle ID:", vehicleId); // ✅ Debug log
+    console.log("Booking vehicle ID:", vehicleId); 
 
-    // 1️⃣ Check if user is logged in
     if (!AppData.currentUser) {
         alert('Please login to book a vehicle');
         this.navigateTo('login');
         return;
     }
 
-    // 2️⃣ Find the correct vehicle (string-safe comparison)
     const vehicle = AppData.vehicles.find(v => String(v.id) === String(vehicleId));
     if (!vehicle) {
         console.error("Vehicle not found for ID:", vehicleId);
@@ -395,7 +387,6 @@ createVehicleCard(vehicle) {
         return;
     }
 
-    // 3️⃣ Build booking modal
     const modal = document.createElement('div');
     modal.className = 'modal active';
     modal.innerHTML = `
@@ -431,7 +422,6 @@ createVehicleCard(vehicle) {
     `;
     document.body.appendChild(modal);
 
-    // 4️⃣ Initialize date inputs and listeners safely
     setTimeout(() => {
         const today = new Date().toISOString().split('T')[0];
         const startInput = document.getElementById('bookingStartDate');
@@ -459,7 +449,7 @@ createVehicleCard(vehicle) {
             startInput.addEventListener('change', calculateTotal);
             endInput.addEventListener('change', calculateTotal);
             insuranceElement.addEventListener('change', calculateTotal);
-            calculateTotal(); // run once initially
+            calculateTotal(); 
         }
     }, 100);
 }
@@ -655,7 +645,7 @@ createVehicleCard(vehicle) {
         `;
         return container;
     }
-    // 🆕 OWNER: Add new vehicle listing page
+   
 renderListVehiclePage() {
   const container = document.createElement('div');
   container.className = 'container';
@@ -685,7 +675,6 @@ renderListVehiclePage() {
 }
 
 
-// 🆕 OWNER: Handle adding new vehicle
 handleVehicleListing(event) {
   event.preventDefault();
 
@@ -705,13 +694,13 @@ handleVehicleListing(event) {
     category: 'Sedan',
     features: ['AC', 'GPS'],
     color: 'Silver',
-    // ✅ Use pasted link or fallback image
+    
     imageUrl: imageInput || 'https://upload.wikimedia.org/wikipedia/commons/9/9d/Generic_car_image.jpg'
   };
 
   AppData.vehicles.push(newVehicle);
 
-  // Save all vehicles persistently
+  
   localStorage.setItem("rentoHubVehicles", JSON.stringify(AppData.vehicles));
 
   alert('✅ Vehicle listed successfully!');
@@ -726,7 +715,7 @@ handleVehicleListing(event) {
         alert('Logged out successfully');
         this.navigateTo('home');
     }
-}// RENTOHUB - Show Unique Digital Key Popup
+}
 function showDigitalKey(bookingId, vehicleName) {
   const uniqueKey = `RH-${bookingId}-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000 + 1000)}`;
   
@@ -749,7 +738,7 @@ function showDigitalKey(bookingId, vehicleName) {
   document.body.appendChild(modal);
 }
 
-// Initialize app
+
 let app;
 window.addEventListener('DOMContentLoaded', () => {
     console.log('Initializing app...');
@@ -757,7 +746,7 @@ window.addEventListener('DOMContentLoaded', () => {
     console.log('App initialized!');
 });
 
-// Handle Sign Up
+
 document.addEventListener("submit", (e) => {
   const form = e.target;
   if (form.id === "signupForm") {
@@ -771,13 +760,13 @@ document.addEventListener("submit", (e) => {
       return;
     }
 
-    // Save to localStorage
+    /
     localStorage.setItem("SmartRideUser", JSON.stringify({ email, password }));
     alert("Registration successful! You can now log in.");
     form.reset();
   }
 
-  // Handle Login
+  
   if (form.id === "loginForm") {
     e.preventDefault();
 
@@ -803,7 +792,7 @@ function SmartRideLogout() {
   alert("You have been logged out.");
 }
 
-// RENTOHUB Login/SignUp Toggle
+
 const loginForm = document.getElementById("loginForm");
 const signupForm = document.getElementById("signupForm");
 const authTitle = document.getElementById("authTitle");
@@ -821,6 +810,7 @@ document.getElementById("switchToLogin").addEventListener("click", (e) => {
   loginForm.style.display = "block";
   authTitle.textContent = "Login to SmartRide";
 });
+
 
 
 
